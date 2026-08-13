@@ -20,27 +20,23 @@ def ri_solver(mu, u, lam, iters=5000):
 
     p = np.ones(m) / m
     scaled = u / lam  # attention vectors initialization
-    print("scaled:", scaled)
     G = np.exp(scaled)
-    print("G =", G)
 
-    num = p[:, None] * G        # num = p(a) * exp(u(a, w) / lam)
-    print("num =", num)
+    for _ in range(iters):  # Iterate until convergence
+        num = p[:, None] * G  # num = p(a) * exp(u(a, w) / lam)
+        denom = num.sum(axis=0)  # denom = sum_a p(a) * exp(u(a, w) / lam)
+        p_cond = (
+            num / denom
+        )  # p_cond = p(a|w) = p(a) * exp(u(a, w) / lam) / sum_a p(a) * exp(u(a, w) / lam)
+        p = p_cond @ mu  # p(a) = sum_w p(a|w) * mu(w)
 
-    denom = num.sum(axis=0)     # denom = sum_a p(a) * exp(u(a, w) / lam)
-    print("denom =", denom)
-
-    p_cond = num / denom        # p_cond = p(a|w) = p(a) * exp(u(a, w) / lam) / sum_a p(a) * exp(u(a, w) / lam)
-    print("p_cond =", p_cond)
-    print("column sums =", p_cond.sum(axis=0))
-
-    return p, p_cond    
+    return p, p_cond
 
 
 if __name__ == "__main__":
     mu = np.array([0.5, 0.5])  # Prior distribution over states
     u = np.array([[1.0, 0.0], [0.0, 1.0]])  # Utility matrix
-    lam = 5.0  # Attention cost
+    lam = 0.5  # Attention cost
     p, p_cond = ri_solver(mu, u, lam)
     print("p:", p)
     print("p_cond:", p_cond)
