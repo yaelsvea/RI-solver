@@ -18,6 +18,9 @@ def ri_solver(mu, u, lam, iters=5000):
     lam = float(lam)
     m, n = u.shape
 
+    if mu.size != n:
+        raise ValueError(f"u has {n} states but mu has {mu.size}")
+
     p = np.ones(m) / m
     scaled = u / lam  # attention vectors initialization
     G = np.exp(scaled)
@@ -25,9 +28,7 @@ def ri_solver(mu, u, lam, iters=5000):
     for _ in range(iters):  # Iterate until convergence
         num = p[:, None] * G  # num = p(a) * exp(u(a, w) / lam)
         denom = num.sum(axis=0)  # denom = sum_a p(a) * exp(u(a, w) / lam)
-        p_cond = (
-            num / denom
-        )  # p_cond = p(a|w) = p(a) * exp(u(a, w) / lam) / sum_a p(a) * exp(u(a, w) / lam)
+        p_cond = (num / denom)  # p_cond = p(a|w) = p(a) * exp(u(a, w) / lam) / sum_a p(a) * exp(u(a, w) / lam)
         p = p_cond @ mu  # p(a) = sum_w p(a|w) * mu(w)
 
     return p, p_cond
