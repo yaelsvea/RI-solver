@@ -7,7 +7,8 @@ def ri_solver(mu, u, lam, iters=5000):
     """Parameters:
     mu: array, shape (n,) - prior distribution over states, sums to 1
     u: array, shape (m, n) - utility matrix, where u[a, w] is the utility of action a in state w
-    lam: float - Lagrange multiplier for the information constraint
+    lam: float - attention cost, the price paid per nat of information
+    iters: int - number of iterations for the Blahut-Arimoto algorithm
 
     Returns:
     p: array, shape (m,) - unconditional choice probabilities, p(a) = sum_w p(a|w) * mu(w)
@@ -22,13 +23,12 @@ def ri_solver(mu, u, lam, iters=5000):
         raise ValueError(f"u has {n} states but mu has {mu.size}")
 
     p = np.ones(m) / m
-    scaled = u / lam  # attention vectors initialization
-    G = np.exp(scaled)
+    G = np.exp(u / lam)
 
-    for _ in range(iters):  # Iterate until convergence
-        num = p[:, None] * G  # num = p(a) * exp(u(a, w) / lam)
-        denom = num.sum(axis=0)  # denom = sum_a p(a) * exp(u(a, w) / lam)
-        p_cond = (num / denom)  # p_cond = p(a|w) = p(a) * exp(u(a, w) / lam) / sum_a p(a) * exp(u(a, w) / lam)
+    for _ in range(iters):
+        num = (p[:, None] * G)  # num = p(a) * exp(u(a, w) / lam), p[:, None] makes p a column so it broadcasts down rows
+        denom = num.sum(axis=0)  # denom = sum_a p(a) * exp(u(a, w) / lam), actions are rows: axis 0 normalises within each state
+        p_cond = num / denom
         p = p_cond @ mu  # p(a) = sum_w p(a|w) * mu(w)
 
     return p, p_cond
