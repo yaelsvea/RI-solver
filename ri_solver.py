@@ -35,7 +35,7 @@ def ri_solver(mu, u, lam, iters=5000):
     return p, p_cond
 
 
-def ri_solver_log(mu, u, lam, iters=5000):
+def ri_solver_log(mu, u, lam, iters=5000, tol=1e-12):
     """Same as ri_solver, but in log space so small lam does not overflow."""
     mu = np.asarray(mu, dtype=float)
     u = np.asarray(u, dtype=float)
@@ -48,13 +48,19 @@ def ri_solver_log(mu, u, lam, iters=5000):
     log_p = np.full(m, -np.log(m))  # log of 1/m
     g = u / lam
 
-    for _ in range(iters):
+    for it in range(1, iters + 1):
         score = log_p[:, None] + g
         log_denom = logsumexp(score, axis=0)
         log_p_cond = score - log_denom
-        log_p = logsumexp(log_p_cond + np.log(mu), axis=1)
+        log_p_new = logsumexp(log_p_cond + np.log(mu), axis=1)
 
-    return np.exp(log_p), np.exp(log_p_cond)
+        shift = np.max(np.abs(np.exp(log_p_new) - np.exp(log_p)))
+        log_p = log_p_new
+        if shift < tol:
+            break
+
+    return np.exp(log_p), np.exp(log_p_cond), it
+
 
 def mutual_information(mu, p, p_cond):
     """I(w; a) in nats. Zero if behaviour is state-independent."""
@@ -64,30 +70,33 @@ def mutual_information(mu, p, p_cond):
         terms = np.where(joint > 0, joint * np.log(ratio), 0.0)
     return float(np.sum(terms))
 
+
 def gross_utility(mu, u, p_cond):
     """Expected payoff before subtracting attention costs."""
     joint = p_cond * mu[None, :]
     return float(np.sum(joint * u))
 
+
 if __name__ == "__main__":
-    mu = np.array([0.5, 0.5])  # Prior distribution over states
+    mu = np.array([0.7, 0.3])  # Prior distribution over states
     u = np.array([[1.0, 0.0], [0.0, 1.0]])  # Utility matrix
     lam = 0.5  # Attention cost
     p, p_cond = ri_solver(mu, u, lam)
     print("p:", p)
     print("p_cond:", p_cond)
-    p_log, pc_log = ri_solver_log(mu, u, lam)
+    p_log, pc_log, iters_used = ri_solver_log(mu, u, lam)
     print("log version p:", p_log)
     print("log version p_cond:", pc_log)
+    print("log version iters used:", iters_used)
     for lam_test in [0.5, 0.1, 0.05, 0.01, 0.005, 0.002, 0.0018, 0.0015, 0.0012,0.001]:
         naive = ri_solver(mu, u, lam_test)[1][0, 0]
         log = ri_solver_log(mu, u, lam_test)[1][0, 0]
         print(f"lam={lam_test:<8} naive={naive:<12.8f} log={log:.8f}")
     for lam_test in [0.001, 0.5, 50.0]:
-        p_t, pc_t = ri_solver_log(mu, u, lam_test)
+        p_t, pc_t, it_t = ri_solver_log(mu, u, lam_test)
         I = mutual_information(mu, p_t, pc_t)
         gross = gross_utility(mu, u, pc_t)
         value = gross - lam_test * I
-        print(f"lam={lam_test:<8} I={I:.6f}  gross={gross:.6f}  value={value:.6f}")
+        print(f"lam={lam_test:<8} I={I:.6f}  gross={gross:.6f}  value={value:.6f} iters={it_t}")
 
 
