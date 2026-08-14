@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.special import logsumexp
 
+
 def ri_solver(mu, u, lam, iters=5000):
     """Parameters:
     mu: array, shape (n,) - prior distribution over states, sums to 1
@@ -48,13 +49,20 @@ def ri_solver_log(mu, u, lam, iters=5000):
     g = u / lam
 
     for _ in range(iters):
-        score = log_p[:, None] + g 
+        score = log_p[:, None] + g
         log_denom = logsumexp(score, axis=0)
         log_p_cond = score - log_denom
         log_p = logsumexp(log_p_cond + np.log(mu), axis=1)
 
     return np.exp(log_p), np.exp(log_p_cond)
 
+def mutual_information(mu, p, p_cond):
+    """I(w; a) in nats. Zero if behaviour is state-independent."""
+    joint = p_cond * mu[None, :]     # P(a, w)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = p_cond / p[:, None]
+        terms = np.where(joint > 0, joint * np.log(ratio), 0.0)
+    return float(np.sum(terms))
 
 if __name__ == "__main__":
     mu = np.array([0.5, 0.5])  # Prior distribution over states
@@ -70,5 +78,7 @@ if __name__ == "__main__":
         naive = ri_solver(mu, u, lam_test)[1][0, 0]
         log = ri_solver_log(mu, u, lam_test)[1][0, 0]
         print(f"lam={lam_test:<8} naive={naive:<12.8f} log={log:.8f}")
-
+    for lam_test in [0.001, 0.5, 50.0]:
+        p_t, pc_t = ri_solver_log(mu, u, lam_test)
+        print(f"lam={lam_test:<8} I={mutual_information(mu, p_t, pc_t):.6f}")
 
