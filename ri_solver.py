@@ -1,7 +1,7 @@
 """Solving a finite Rational Inattention problem by Blahut-Arimoto iteration."""
 
 import numpy as np
-
+from scipy.special import logsumexp
 
 def ri_solver(mu, u, lam, iters=5000):
     """Parameters:
@@ -34,6 +34,28 @@ def ri_solver(mu, u, lam, iters=5000):
     return p, p_cond
 
 
+def ri_solver_log(mu, u, lam, iters=5000):
+    """Same as ri_solver, but in log space so small lam does not overflow."""
+    mu = np.asarray(mu, dtype=float)
+    u = np.asarray(u, dtype=float)
+    lam = float(lam)
+    m, n = u.shape
+
+    if mu.size != n:
+        raise ValueError(f"u has {n} states but mu has {mu.size}")
+
+    log_p = np.full(m, -np.log(m))  # log of 1/m
+    g = u / lam
+
+    for _ in range(iters):
+        score = log_p[:, None] + g 
+        log_denom = logsumexp(score, axis=0)
+        log_p_cond = score - log_denom
+        log_p = logsumexp(log_p_cond + np.log(mu), axis=1)
+
+    return np.exp(log_p), np.exp(log_p_cond)
+
+
 if __name__ == "__main__":
     mu = np.array([0.5, 0.5])  # Prior distribution over states
     u = np.array([[1.0, 0.0], [0.0, 1.0]])  # Utility matrix
@@ -41,3 +63,12 @@ if __name__ == "__main__":
     p, p_cond = ri_solver(mu, u, lam)
     print("p:", p)
     print("p_cond:", p_cond)
+    p_log, pc_log = ri_solver_log(mu, u, lam)
+    print("log version p:", p_log)
+    print("log version p_cond:", pc_log)
+    for lam_test in [0.5, 0.1, 0.05, 0.01, 0.005, 0.002, 0.0018, 0.0015, 0.0012,0.001]:
+        naive = ri_solver(mu, u, lam_test)[1][0, 0]
+        log = ri_solver_log(mu, u, lam_test)[1][0, 0]
+        print(f"lam={lam_test:<8} naive={naive:<12.8f} log={log:.8f}")
+
+
