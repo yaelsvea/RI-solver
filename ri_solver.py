@@ -64,6 +64,11 @@ def mutual_information(mu, p, p_cond):
         terms = np.where(joint > 0, joint * np.log(ratio), 0.0)
     return float(np.sum(terms))
 
+def gross_utility(mu, u, p_cond):
+    """Expected payoff before subtracting attention costs."""
+    joint = p_cond * mu[None, :]
+    return float(np.sum(joint * u))
+
 if __name__ == "__main__":
     mu = np.array([0.5, 0.5])  # Prior distribution over states
     u = np.array([[1.0, 0.0], [0.0, 1.0]])  # Utility matrix
@@ -80,5 +85,9 @@ if __name__ == "__main__":
         print(f"lam={lam_test:<8} naive={naive:<12.8f} log={log:.8f}")
     for lam_test in [0.001, 0.5, 50.0]:
         p_t, pc_t = ri_solver_log(mu, u, lam_test)
-        print(f"lam={lam_test:<8} I={mutual_information(mu, p_t, pc_t):.6f}")
+        I = mutual_information(mu, p_t, pc_t)
+        gross = gross_utility(mu, u, pc_t)
+        value = gross - lam_test * I
+        print(f"lam={lam_test:<8} I={I:.6f}  gross={gross:.6f}  value={value:.6f}")
+
 
