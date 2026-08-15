@@ -18,12 +18,31 @@ $$\max_{p(a\mid\omega)} \sum_\omega \mu_\omega \sum_a p(a\mid\omega)u(a,\omega) 
 with $I$ the mutual information between state and action, and
 $p(a) = \sum_\omega \mu_\omega p(a\mid\omega)$.
  
+
 ## Usage
+```python
+import numpy as np
+from ri_solver import ri_solver_log, mutual_information, gross_utility
+
+mu = np.array([0.7, 0.3])
+u = np.array([[1.0, 0.0], [0.0, 1.0]])
+lam = 0.5
+
+p, p_cond, iters = ri_solver_log(mu, u, lam)
+info = mutual_information(mu, p, p_cond)
+gross = gross_utility(mu, u, p_cond)
+value = gross - lam * info
+```
 
 ## What's implemented
+- The naive Blahut–Arimoto solver.
+- A log-space solver, built because the naive implementation suffers from numerical overflow at very low values of λ.
+- Functions to calculate mutual information and gross utility.
+- A convergence criterion based on the maximum change in the unconditional probability distribution between iterations.
+
+
 
 ## What I found
-
 
 Overflow. The first issue I ran into was numerical overflow in the exponential calculation when λ became very small. I estimated the failure point to be around λ ≈ 0.0014 using the float64 limit (ln(1.8 × 10^308) ≈ 709.8), and then confirmed it by checking values between 0.0012 and 0.0015. This showed that the naive implementation needed more careful numerical handling for very small λ.
 
@@ -42,4 +61,20 @@ Therefore the iteration limit can give a highly misleading answer. In the three-
 | 4.0 | 1.7e-10 | 1.7e-10 | 3,679 |
 
 
+## Validation
+
+The test-suite runs with pytest and consists of seven tests covering the following: 
+- The symmetric 2x2 case matches a hand-derived closed-form solution.
+- The naive and log-space solvers produce identical results.
+- The model exhibits full learning at low λ (mutual information approaches ln 2) and no learning at high λ.
+- Strictly dominated actions are correctly dropped.
+- Input validation correctly raises errors for mismatched array shapes. 
+
+
 ## Not yet done
+
+Comparison against the replication package. The outputs here have not been checked against the authors' published code (Zenodo 10.5281/zenodo.8316359). 
+
+The paper's proposed algorithm. This repository implements the Blahut–Arimoto baseline, not the novel method introduced in the paper. The paper's contribution is a superior algorithm designed to bypass the boundary and convergence struggles documented in the findings above. Comparing this baseline against the proposed algorithm is the obvious uncompleted next step.
+
+Higher-dimensional state spaces. Everything run so far is limited to two states. With three states, the belief space becomes a triangle rather than a simple interval, which is where the geometry the paper investigates actually becomes visible.
