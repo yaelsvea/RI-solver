@@ -35,7 +35,7 @@ def ri_solver(mu, u, lam, iters=5000):
     return p, p_cond
 
 
-def ri_solver_log(mu, u, lam, iters=5000, tol=1e-12):
+def ri_solver_log(mu, u, lam, iters=50000, tol=1e-12):
     """Same as ri_solver, but in log space so small lam does not overflow."""
     mu = np.asarray(mu, dtype=float)
     u = np.asarray(u, dtype=float)
@@ -99,4 +99,9 @@ if __name__ == "__main__":
         value = gross - lam_test * I
         print(f"lam={lam_test:<8} I={I:.6f}  gross={gross:.6f}  value={value:.6f} iters={it_t}")
 
-
+    u3 = np.array([[2.0, 0.0], [0.0, 2.0], [1.1, 1.1]])
+    mu3 = np.array([0.5, 0.5])
+    print(f"\n{'lam':>7} {'p(spec1)':>10} {'p(spec2)':>10} {'p(safe)':>12} {'iters':>7}")
+    for lam_test in [10.0, 6.0, 5.8, 5.6, 5.4, 5.2, 5.0, 4.0, 2.0, 1.0, 0.5, 0.1]:
+        p_t, pc_t, it_t = ri_solver_log(mu3, u3, lam_test)
+        print(f"{lam_test:7} {p_t[0]:10.6f} {p_t[1]:10.6f} {p_t[2]:12.3e} {it_t:7d}")
